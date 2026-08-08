@@ -8,6 +8,7 @@ class Employee(models.Model):
     position = models.CharField(max_length=100)
     hire_date = models.DateField(default=timezone.now)
     phone_number = models.CharField(max_length=15, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
     
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} - {self.position}"

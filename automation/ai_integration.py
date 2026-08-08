@@ -66,3 +66,5 @@ def auto_evaluate_requests() -> dict:
         })
     
     return results
+
+summarize_leave_requests_with_ai = summarize_pending_requests
