@@ -8,6 +8,7 @@ from .models import Employee, LeaveRequest
 from .serializers import EmployeeSerializer, LeaveRequestSerializer
 from automation.ai_integration import summarize_leave_requests_with_ai, get_ai_approval_recommendation
 from automation.scripts import send_daily_report_email, auto_approve_emergency_requests
+from rest_framework.permissions import IsAuthenticated
 
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.all()
@@ -17,7 +18,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 class LeaveRequestViewSet(viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all()
     serializer_class = LeaveRequestSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def perform_create(self, serializer):
         serializer.save(status='PENDING')
