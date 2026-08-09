@@ -281,7 +281,7 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
 
-    # Celery Configuration
+# Celery Configuration
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
@@ -289,6 +289,7 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
+# REST Framework Configuration with JWT
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -306,7 +307,6 @@ SIMPLE_JWT = {
 }
 
 # Celery Beat Schedule
-
 CELERY_BEAT_SCHEDULE = {
     'send-daily-report': {
         'task': 'automation.tasks.send_daily_report',
@@ -322,6 +322,7 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# Static files directories for custom admin
 STATICFILES_DIRS = [
     BASE_DIR / "core" / "static",
 ]

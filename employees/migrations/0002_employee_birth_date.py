@@ -15,4 +15,5 @@ class Migration(migrations.Migration):
             name='birth_date',
             field=models.DateField(blank=True, null=True),
         ),
+
     ]

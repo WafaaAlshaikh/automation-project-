@@ -2,7 +2,7 @@
 
 An internal **Leave Management System** built as an **Automation Engineer technical assessment for Harri – Palestine**.
 
-The system provides employee and leave management, approval workflows, automated operations, reporting, and AI-powered recommendations.
+The system provides employee and leave management, approval workflows, automated background tasks, reporting, and AI-powered recommendations.
 
 ---
 
@@ -18,10 +18,8 @@ The system provides employee and leave management, approval workflows, automated
 * [API Endpoints](#-api-endpoints)
 * [Example API Requests](#-example-api-requests)
 * [Automation & AI](#-automation--ai)
+* [Celery & Background Tasks](#-celery--background-tasks)
 * [API Testing](#-api-testing)
-* [Deployment](#-deployment)
-* [Production Security](#-production-security)
-* [Project Status](#-project-status)
 
 ---
 
@@ -37,9 +35,9 @@ The project demonstrates practical experience with:
 * Employee and leave request management
 * Approval and rejection workflows
 * Automated leave processing
-* AI-powered recommendations
+* Background task processing with **Celery**
+* AI-powered recommendations using **Groq**
 * Automated daily reporting
-* RESTful API architecture
 * Environment-based configuration
 * Docker-based deployment
 
@@ -85,7 +83,16 @@ Managers can:
 * Review leave requests
 * Approve leave requests
 * Reject leave requests
-* Get AI-powered recommendations
+* Get AI-powered approval recommendations
+
+### ⚡ Automation
+
+* Emergency leave auto-approval
+* Automated daily reports
+* Scheduled background tasks
+* Automatic evaluation of pending leave requests
+* AI-generated summaries
+* Background task processing using Celery
 
 ---
 
@@ -114,7 +121,10 @@ Managers can:
                     Workflow     Emergency       │
                                       │           │
                                       ▼           ▼
-                                  AI / LLM    Daily Reports
+                                  Groq AI      Celery
+                                      │
+                                      ▼
+                                AI Analysis
 
                             │
                             ▼
@@ -125,16 +135,17 @@ Managers can:
 
 ### Main Components
 
-| Component             | Responsibility                           |
-| --------------------- | ---------------------------------------- |
-| Django                | Core backend application                 |
-| Django REST Framework | REST API layer                           |
-| Employees App         | Employee and leave request management    |
-| Automation Module     | Automated workflows and reporting        |
-| AI Integration        | AI-powered summaries and recommendations |
-| MySQL                 | Persistent data storage                  |
-| Postman               | API testing                              |
-| Docker                | Containerized application deployment     |
+| Component             | Responsibility                        |
+| --------------------- | ------------------------------------- |
+| Django                | Core backend application              |
+| Django REST Framework | REST API layer                        |
+| Employees App         | Employee and leave request management |
+| Automation Module     | Automated workflows and reporting     |
+| Groq AI               | AI summaries and recommendations      |
+| Celery                | Background task processing            |
+| MySQL                 | Persistent data storage               |
+| Postman               | API testing                           |
+| Docker                | Containerization                      |
 
 ---
 
@@ -157,7 +168,10 @@ Check Request
    └── Normal Leave
               │
               ▼
-        Manager Review
+        AI Evaluation
+              │
+              ▼
+       Manager Review
               │
         ┌─────┴─────┐
         ▼           ▼
@@ -184,13 +198,23 @@ Requests exceeding 2 days follow the normal manager approval workflow.
 | MySQL                 |     9.0 | Database             |
 | PyMySQL               |     1.2 | MySQL Connector      |
 
+### Automation & AI
+
+| Technology | Purpose                                    |
+| ---------- | ------------------------------------------ |
+| Groq       | AI / LLM integration                       |
+| Llama      | AI model for recommendations and summaries |
+| Celery     | Background task processing                 |
+| Redis      | Celery message broker / result backend     |
+
 ### Libraries
 
 | Library               | Purpose                         |
 | --------------------- | ------------------------------- |
 | `django-cors-headers` | CORS handling                   |
 | `python-dotenv`       | Environment variable management |
-| `openai`              | AI / LLM integration            |
+| `groq`                | Groq API client                 |
+| `celery`              | Background task processing      |
 
 ### Development Tools
 
@@ -215,6 +239,7 @@ Make sure the following are installed:
 * Git
 * pip
 * Virtual Environment
+* Redis (required for Celery background tasks)
 
 ---
 
@@ -251,6 +276,12 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+If the project dependencies have not been installed yet, the main packages include:
+
+```bash
+pip install django djangorestframework pymysql python-dotenv groq celery redis django-cors-headers
+```
+
 ---
 
 ## Step 4: Configure MySQL
@@ -280,7 +311,7 @@ TO 'django_user'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-> For production environments, use a strong database password and never commit credentials to GitHub.
+> For production environments, use strong database credentials and never commit them to GitHub.
 
 ---
 
@@ -297,12 +328,11 @@ DATABASE_PASSWORD=your-secure-password
 DATABASE_HOST=localhost
 DATABASE_PORT=3306
 
-OPENAI_API_KEY=your-openai-key-here
+GROQ_API_KEY=gsk_your_api_key_here
+GROQ_MODEL=your-groq-model
 ```
 
-The `OPENAI_API_KEY` is optional if AI functionality is not enabled.
-
-> Never commit the `.env` file to GitHub.
+> Never commit `.env` to GitHub.
 
 ---
 
@@ -406,16 +436,17 @@ http://127.0.0.1:8000/api/
 
 ---
 
-## ⚙️ Custom Workflow Endpoints
+## ⚙️ Workflow & Automation Endpoints
 
-| Method | Endpoint                                  | Description                   |
-| ------ | ----------------------------------------- | ----------------------------- |
-| `POST` | `/leave-requests/{id}/approve/`           | Approve a leave request       |
-| `POST` | `/leave-requests/{id}/reject/`            | Reject a leave request        |
-| `GET`  | `/leave-requests/summary/`                | Generate AI-powered summary   |
-| `GET`  | `/leave-requests/{id}/ai_recommendation/` | Get AI recommendation         |
-| `POST` | `/leave-requests/send_report/`            | Send daily report             |
-| `POST` | `/leave-requests/auto_approve_emergency/` | Auto-approve emergency leaves |
+| Method | Endpoint                                  | Description                             |
+| ------ | ----------------------------------------- | --------------------------------------- |
+| `POST` | `/leave-requests/{id}/approve/`           | Approve a leave request                 |
+| `POST` | `/leave-requests/{id}/reject/`            | Reject a leave request                  |
+| `GET`  | `/leave-requests/summary/`                | Generate AI-powered summary             |
+| `GET`  | `/leave-requests/{id}/ai_recommendation/` | Get AI recommendation                   |
+| `POST` | `/leave-requests/auto_evaluate/`          | Automatically evaluate pending requests |
+| `POST` | `/leave-requests/send_report/`            | Send daily report                       |
+| `POST` | `/leave-requests/auto_approve_emergency/` | Auto-approve emergency leaves           |
 
 ---
 
@@ -473,7 +504,7 @@ Content-Type: application/json
 POST /api/leave-requests/1/approve/
 ```
 
-Example using cURL:
+Example:
 
 ```bash
 curl -X POST \
@@ -525,58 +556,118 @@ curl http://127.0.0.1:8000/api/leave-requests/1/ai_recommendation/
 
 ---
 
+## 7. Auto-Evaluate Pending Requests
+
+```http
+POST /api/leave-requests/auto_evaluate/
+```
+
+Example:
+
+```bash
+curl -X POST \
+http://127.0.0.1:8000/api/leave-requests/auto_evaluate/
+```
+
+---
+
 # 🤖 Automation & AI
 
-The system combines automated workflows, reporting, and AI-powered capabilities.
+The project combines automated workflows, AI-powered analysis, and background processing.
 
-## AI Features
+## 🤖 AI Integration with Groq
 
-The system supports:
+The project uses **Groq** for AI-powered features.
 
-* AI-powered leave request summaries
-* AI-powered approval recommendations
-* Smart insights for managers
-* Leave request analysis
+Groq provides a fast API for running large language models and is used in this project to analyze leave requests and generate recommendations.
 
-The AI integration is implemented in:
+### AI Features
+
+| Feature                     | Description                                    | Endpoint                                          |
+| --------------------------- | ---------------------------------------------- | ------------------------------------------------- |
+| **Request Summary**         | AI-generated summary of pending leave requests | `GET /api/leave-requests/summary/`                |
+| **Approval Recommendation** | AI recommendation for a specific request       | `GET /api/leave-requests/{id}/ai_recommendation/` |
+| **Auto Evaluation**         | Automatic evaluation of pending requests       | `POST /api/leave-requests/auto_evaluate/`         |
+
+### AI Workflow
+
+```text
+Employee submits leave request
+           │
+           ▼
+      AI Analysis
+           │
+     ┌─────┴─────┐
+     ▼           ▼
+Emergency      Normal
+≤ 2 days       > 2 days
+     │           │
+     ▼           ▼
+Auto-Approve   AI Recommendation
+                   │
+                   ▼
+              Manager Review
+```
+
+### AI Configuration
+
+Add the following variables to `.env`:
+
+```env
+GROQ_API_KEY=gsk_your_api_key_here
+GROQ_MODEL=your-groq-model
+```
+
+Install the Groq Python client:
+
+```bash
+pip install groq
+```
+
+### AI Integration Files
 
 ```text
 automation/
+├── groq_client.py
 └── ai_integration.py
 ```
 
-### AI Processing Flow
+### Testing AI Features
 
-```text
-Leave Requests
-      │
-      ▼
-AI Analysis
-      │
-      ├──► Summary
-      │
-      ├──► Recommendation
-      │
-      └──► Manager Insights
+Open the Django shell:
+
+```bash
+python manage.py shell
 ```
 
+Then:
+
+```python
+from automation.ai_integration import summarize_pending_requests
+
+summary = summarize_pending_requests()
+
+print(summary)
+```
+
+### Example AI Response
+
+```json
+{
+    "recommendation": "APPROVE",
+    "reasoning": "Employee has a valid reason and the requested duration is reasonable.",
+    "risk_level": "LOW",
+    "suggested_action": "Approve the request"
+}
+```
+
+> AI recommendations are decision-support features and should not replace appropriate managerial review.
+
 ---
 
-## ⚡ Automated Workflows
+## 📊 Automated Reporting
 
-The system includes:
-
-* Emergency leave auto-approval for requests of **2 days or less**
-* Automated daily reports
-* Scheduled reporting through Django management commands
-* Automated leave processing
-* AI-powered request analysis
-
----
-
-## 📊 Reporting
-
-The system supports:
+The project supports automated reporting, including:
 
 * Daily leave reports
 * Weekly leave summaries
@@ -584,23 +675,7 @@ The system supports:
 * Leave request statistics
 * AI-generated summaries
 
----
-
-## 🤖 AI Configuration
-
-To enable AI functionality, add your OpenAI API key to `.env`:
-
-```env
-OPENAI_API_KEY=your-openai-key-here
-```
-
-AI functionality is optional and the system can operate without an OpenAI API key.
-
----
-
-## 📅 Daily Reporting
-
-The project includes a custom Django management command:
+A custom Django management command is available:
 
 ```text
 automation/
@@ -615,13 +690,91 @@ Run the report manually:
 python manage.py send_daily_report
 ```
 
-The reporting workflow can be integrated with scheduling tools such as:
+---
 
-* Linux Cron
-* Windows Task Scheduler
-* Cloud Scheduler
-* CI/CD pipelines
-* Celery / Celery Beat
+# ⚡ Celery & Background Tasks
+
+The project uses **Celery** for background task processing.
+
+Celery allows long-running and scheduled operations to execute outside the main Django request cycle.
+
+### Background Tasks
+
+* Automated daily reports
+* Emergency leave auto-approval
+* AI summary generation
+* Automated pending-request evaluation
+* Email notifications ready for integration
+
+---
+
+## ⏰ Celery Beat Schedule
+
+| Task                     | Schedule             | Description                         |
+| ------------------------ | -------------------- | ----------------------------------- |
+| `send_daily_report`      | Every day at 9:00 AM | Sends daily leave report            |
+| `auto_approve_emergency` | Every 30 minutes     | Processes eligible emergency leaves |
+| `generate_ai_summary`    | Every day at 5:00 PM | Generates AI-powered summary        |
+
+> The exact schedules depend on the Celery Beat configuration in the project.
+
+---
+
+## ▶️ Running Celery
+
+### Start the Celery Worker
+
+```bash
+python -m celery -A core worker --loglevel=info --pool=solo
+```
+
+### Start Celery Beat
+
+Open another terminal:
+
+```bash
+python -m celery -A core beat --loglevel=info
+```
+
+Both the worker and Beat scheduler should be running for scheduled background tasks to execute.
+
+---
+
+## 🧪 Running Tasks Manually
+
+Open the Django shell:
+
+```bash
+python manage.py shell
+```
+
+Then:
+
+```python
+from automation.tasks import (
+    send_daily_report,
+    auto_approve_emergency,
+    generate_ai_summary
+)
+
+send_daily_report.delay()
+auto_approve_emergency.delay()
+generate_ai_summary.delay()
+```
+
+---
+
+## ⚙️ Celery Configuration
+
+Example configuration:
+
+```python
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+CELERY_TIMEZONE = "UTC"
+```
+
+For local development without Redis, Celery can be configured differently, but a real message broker such as **Redis** is recommended for actual background processing.
 
 ---
 
@@ -688,99 +841,7 @@ http://127.0.0.1:8000/api/leave-requests/1/reject/
         ↓
 7. Test AI Summary
         ↓
-8. Test Automation
+8. Test Auto Evaluation
+        ↓
+9. Test Background Tasks
 ```
-
----
-
-# 🚢 Deployment
-
-## Docker
-
-The project can be containerized using Docker.
-
-### Dockerfile
-
-```dockerfile
-FROM python:3.12-slim
-
-WORKDIR /app
-
-COPY requirements.txt .
-
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-EXPOSE 8000
-
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-```
-
-### Build the Docker Image
-
-```bash
-docker build -t automation-project .
-```
-
-### Run the Container
-
-```bash
-docker run -p 8000:8000 automation-project
-```
-
-The application will then be available at:
-
-```text
-http://127.0.0.1:8000/
-```
-
-> The Docker configuration above uses Django's development server. For production deployments, use Gunicorn with a production-ready reverse proxy such as Nginx.
-
----
-
-# 🔒 Production Security
-
-Before deploying to production:
-
-* [ ] Set `DEBUG=False`
-* [ ] Use a strong Django `SECRET_KEY`
-* [ ] Never commit `.env`
-* [ ] Use strong database credentials
-* [ ] Configure `ALLOWED_HOSTS`
-* [ ] Configure HTTPS
-* [ ] Use proper authentication and authorization
-* [ ] Replace `AllowAny` with appropriate permissions
-* [ ] Configure CORS securely
-* [ ] Use Gunicorn or another production WSGI server
-* [ ] Configure Nginx or another reverse proxy
-* [ ] Configure database backups
-* [ ] Store API keys securely
-
----
-
-# 📊 Project Status
-
-**Status:** Completed ✅
-
-This project was developed as an **Automation Engineer technical assessment for Harri – Palestine**.
-
-### Implemented Areas
-
-* Employee management
-* Leave request management
-* RESTful API endpoints
-* Approval and rejection workflows
-* Emergency leave automation
-* AI-powered recommendations
-* AI-powered summaries
-* Daily reporting
-* MySQL database integration
-* Environment-based configuration
-* Docker support
-
----
-
-## ⭐ If you find this project useful
-
-Consider giving the repository a ⭐ on GitHub!

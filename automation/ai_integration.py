@@ -3,6 +3,7 @@ import json
 from django.conf import settings
 from employees.models import LeaveRequest
 from django.utils import timezone
+import json
 
 # محاولة استيراد Groq
 try:
@@ -117,7 +118,6 @@ def get_ai_approval_recommendation(leave_request_id):
     response = groq_service.get_response(messages, temperature=0.3, max_tokens=300)
     
     try:
-        # محاولة استخراج JSON من الرد
         json_start = response.find('{')
         json_end = response.rfind('}') + 1
         if json_start != -1 and json_end != -1:
@@ -130,6 +130,37 @@ def get_ai_approval_recommendation(leave_request_id):
         "reasoning": response[:200],
         "risk_level": "MEDIUM"
     }
+
+def auto_evaluate_requests() -> dict:
+    """تقييم تلقائي للطلبات المعلقة"""
+    pending = LeaveRequest.objects.filter(status='PENDING')
+    
+    results = {
+        'total': pending.count(),
+        'approved': 0,
+        'rejected': 0,
+        'review': 0,
+        'details': []
+    }
+    
+    for req in pending:
+        rec = get_ai_approval_recommendation(req.id)
+        
+        if rec.get('recommendation') == 'APPROVE':
+            results['approved'] += 1
+        elif rec.get('recommendation') == 'REJECT':
+            results['rejected'] += 1
+        else:
+            results['review'] += 1
+        
+        results['details'].append({
+            'request_id': req.id,
+            'employee': str(req.employee),
+            'recommendation': rec.get('recommendation', 'REVIEW'),
+            'reason': rec.get('reasoning', '')
+        })
+    
+    return results
 
 def summarize_leave_requests_with_ai():
     """Alias for summarize_pending_requests for backward compatibility"""
