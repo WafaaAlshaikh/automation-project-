@@ -1,0 +1,27 @@
+from celery import shared_task
+from django.core.mail import send_mail
+from django.utils import timezone
+from .scripts import generate_daily_report, auto_approve_emergency_requests
+from .ai_integration import summarize_leave_requests_with_ai
+
+@shared_task(queue='reports')
+def send_daily_report_task():
+    """Background task to send daily report"""
+    report = generate_daily_report()
+    ai_summary = summarize_leave_requests_with_ai()
+    full_report = f"{report}\n\n{ai_summary}"
+    print(f"📧 Daily Report Sent at {timezone.now()}")
+    return {'status': 'success', 'sent_at': str(timezone.now())}
+
+@shared_task(queue='automation')
+def auto_approve_emergency_task():
+    """Background task to auto-approve emergency leaves"""
+    count = auto_approve_emergency_requests()
+    return {'status': 'success', 'approved_count': count}
+
+@shared_task(queue='reports')
+def generate_weekly_summary_task():
+    """Generate weekly summary"""
+    from .ai_integration import generate_weekly_insights
+    insights = generate_weekly_insights()
+    return {'status': 'success', 'generated_at': str(timezone.now())}

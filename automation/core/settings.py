@@ -17,15 +17,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
-GROQ_MODEL = os.environ.get('GROQ_MODEL', 'llama-3.3-70b-versatile')
-
-GROQ_RATE_LIMITS = {
-    'llama-3.3-70b-versatile': {'requests_per_day': 1000, 'tokens_per_minute': 12000},
-    'llama-3.1-8b-instant': {'requests_per_day': 14400, 'tokens_per_minute': 6000},
-    'qwen-3-32b': {'requests_per_day': 1000, 'tokens_per_minute': 6000},
-}
-
 pymysql.install_as_MySQLdb()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -289,28 +280,26 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
 
-#     # Django Tasks Configuration
-# TASKS = {
-#     'default': {
-#         'BACKEND': 'django.tasks.backends.synchronous.SynchronousBackend',  # للتجربة
-#         # 'BACKEND': 'django.tasks.backends.database.DatabaseBackend',  # للإنتاج
-#     },
-#     'queues': {
-#         'reports': {
-#             'BACKEND': 'django.tasks.backends.synchronous.SynchronousBackend',
-#         },
-#         'automation': {
-#             'BACKEND': 'django.tasks.backends.synchronous.SynchronousBackend',
-#         },
-#     }
-# }
-
-# Celery Configuration
-CELERY_BROKER_URL = 'memory://'
-CELERY_RESULT_BACKEND = 'cache+memory://'
+    # Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
-CELERY_TASK_ALWAYS_EAGER = True
-CELERY_TASK_EAGER_PROPAGATES = True
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ]
+}
+
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+}

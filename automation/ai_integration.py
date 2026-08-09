@@ -1,99 +1,136 @@
 import os
 import json
-from employees.models import LeaveRequest, Employee
+from django.conf import settings
+from employees.models import LeaveRequest
 from django.utils import timezone
 
-# Note: You'll need to install: pip install openai
-# Then get your API key from: https://platform.openai.com/api-keys
+# محاولة استيراد Groq
+try:
+    from groq import Groq
+    GROQ_AVAILABLE = True
+except ImportError:
+    GROQ_AVAILABLE = False
+    print("⚠️ Groq not installed. Run: pip install groq")
 
-def summarize_leave_requests_with_ai():
-    """
-    Use OpenAI/Claude to summarize pending leave requests.
-    This is a mock version - you'll need to add your API key.
-    """
-    pending_requests = LeaveRequest.objects.filter(status='PENDING')
+class GroqAIService:
+    """Service class for interacting with Groq API"""
     
-    if not pending_requests:
-        return "No pending leave requests today. ✅"
+    def __init__(self):
+        self.api_key = os.environ.get('GROQ_API_KEY', getattr(settings, 'GROQ_API_KEY', None))
+        self.model = os.environ.get('GROQ_MODEL', 'llama3-70b-8192')
+        
+        if not self.api_key:
+            print("⚠️ GROQ_API_KEY not set. AI features will use mock responses.")
+            self.client = None
+        elif not GROQ_AVAILABLE:
+            print("⚠️ Groq library not installed.")
+            self.client = None
+        else:
+            self.client = Groq(api_key=self.api_key)
     
-    # Prepare data for AI
+    def get_response(self, messages, temperature=0.7, max_tokens=500):
+        """Send messages to Groq API and get response"""
+        if not self.client:
+            return self._get_mock_response(messages)
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"❌ Groq API error: {e}")
+            return f"⚠️ AI Error: {str(e)}"
+    
+    def _get_mock_response(self, messages):
+        """Fallback mock response when API key is missing"""
+        return f"[MOCK] AI would respond to: {messages[-1]['content'][:100]}..."
+
+# Initialize global service
+groq_service = GroqAIService()
+
+def summarize_pending_requests():
+    """Generate AI summary of pending leave requests"""
+    pending = LeaveRequest.objects.filter(status='PENDING')
+    
+    if not pending:
+        return "✅ No pending leave requests today!"
+    
     requests_data = []
-    for req in pending_requests:
+    for req in pending:
         requests_data.append({
             'employee': f"{req.employee.user.first_name} {req.employee.user.last_name}",
             'department': req.employee.department,
             'type': req.get_leave_type_display(),
-            'start_date': str(req.start_date),
-            'end_date': str(req.end_date),
             'days': req.days_count,
             'reason': req.reason
         })
     
-    prompt = f"""
-    Summarize these leave requests for a manager:
-    {json.dumps(requests_data, indent=2)}
-    
-    Please provide:
-    1. Total number of requests
+    system_prompt = """You are an AI assistant helping a manager review leave requests.
+    Provide a clear summary with:
+    1. Total count
     2. Breakdown by department
-    3. Any urgent or unusual requests
+    3. Urgent cases
     4. Recommendations
-    """
+    Be concise."""
     
-    # For demo, return a mock response
-    # In production with real API:
-    # import openai
-    # openai.api_key = os.environ.get('OPENAI_API_KEY')
-    # response = openai.ChatCompletion.create(
-    #     model="gpt-3.5-turbo",
-    #     messages=[{"role": "user", "content": prompt}]
-    # )
-    # return response.choices[0].message.content
+    user_prompt = f"Pending leave requests:\n{json.dumps(requests_data, indent=2)}"
     
-    mock_summary = f"""
-📝 AI SUMMARY - {timezone.now().date()}
-{'='*40}
-
-Total Pending Requests: {len(requests_data)}
-
-Department Breakdown:
-- Engineering: {sum(1 for r in requests_data if r['department'] == 'Engineering')} requests
-- HR: {sum(1 for r in requests_data if r['department'] == 'HR')} requests
-
-Key Requests:
-1. {requests_data[0]['employee']} - {requests_data[0]['type']} ({requests_data[0]['days']} days)
-   Reason: {requests_data[0]['reason']}
-
-Recommendations:
-- All requests appear reasonable
-- Consider approving emergency requests ASAP
-"""
-    return mock_summary
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+    
+    response = groq_service.get_response(messages, temperature=0.3, max_tokens=600)
+    
+    return f"📊 **AI Summary - {timezone.now().date()}**\n\n{response}"
 
 def get_ai_approval_recommendation(leave_request_id):
     """Get AI recommendation for a specific leave request"""
     try:
         req = LeaveRequest.objects.get(id=leave_request_id)
     except LeaveRequest.DoesNotExist:
-        return "Request not found"
+        return {"error": "Request not found"}
     
-    prompt = f"""
-    Leave Request Details:
-    Employee: {req.employee.user.first_name} {req.employee.user.last_name}
-    Department: {req.employee.department}
-    Type: {req.get_leave_type_display()}
-    Duration: {req.days_count} days
-    Reason: {req.reason}
+    request_data = {
+        'employee': f"{req.employee.user.first_name} {req.employee.user.last_name}",
+        'department': req.employee.department,
+        'leave_type': req.get_leave_type_display(),
+        'days': req.days_count,
+        'reason': req.reason
+    }
     
-    Should this request be approved? Consider:
-    - Leave type
-    - Department workload
-    - Employee history
-    Provide recommendation (Approve/Reject) and reason.
-    """
+    system_prompt = """You are an AI assistant for HR.
+    Analyze the leave request and provide recommendation.
+    Format as JSON with: recommendation (Approve/Reject/Review), reasoning, risk_level (Low/Medium/High)."""
     
-    # Mock response
-    if req.days_count <= 3:
-        return f"✅ APPROVED: Short leave request ({req.days_count} days) is reasonable."
-    else:
-        return f"⚠️ REVIEW: Long leave request ({req.days_count} days). Check with manager."
+    user_prompt = f"Evaluate this request:\n{json.dumps(request_data, indent=2)}"
+    
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+    
+    response = groq_service.get_response(messages, temperature=0.3, max_tokens=300)
+    
+    try:
+        # محاولة استخراج JSON من الرد
+        json_start = response.find('{')
+        json_end = response.rfind('}') + 1
+        if json_start != -1 and json_end != -1:
+            return json.loads(response[json_start:json_end])
+    except:
+        pass
+    
+    return {
+        "recommendation": "REVIEW",
+        "reasoning": response[:200],
+        "risk_level": "MEDIUM"
+    }
+
+def summarize_leave_requests_with_ai():
+    """Alias for summarize_pending_requests for backward compatibility"""
+    return summarize_pending_requests()
