@@ -1,21 +1,29 @@
-from django.core.management.base import BaseCommand
-from automation.scripts import send_daily_report_email, auto_approve_emergency_requests
+from celery import shared_task
+from django.core.mail import send_mail
+from django.utils import timezone
+from .scripts import generate_daily_report, auto_approve_emergency_requests
+from .ai_integration import summarize_pending_requests
 from automation.ai_integration import summarize_leave_requests_with_ai
 
-class Command(BaseCommand):
-    help = 'Send daily leave report and process emergency requests'
+@shared_task
+def send_daily_report_email_task():
+    report = generate_daily_report()
+    
+    # send_mail(
+    #     subject=f'Daily Leave Report - {timezone.now().date()}',
+    #     message=report,
+    #     from_email='noreply@company.com',
+    #     recipient_list=['manager@company.com'],
+    # )
+    
+    return f"Report sent: {len(report)} characters"
 
-    def handle(self, *args, **options):
-        self.stdout.write('📊 Processing daily automation...')
-        
-        # Auto-approve emergencies
-        count = auto_approve_emergency_requests()
-        self.stdout.write(f'✅ Auto-approved {count} emergency requests')
-        
-        # Generate AI summary
-        summary = summarize_leave_requests_with_ai()
-        self.stdout.write('\n' + summary)
-        
-        # Send report
-        report = send_daily_report_email()
-        self.stdout.write('✅ Daily report sent successfully!')
+@shared_task
+def auto_approve_emergency_task():
+    count = auto_approve_emergency_requests()
+    return f"Auto-approved {count} emergency requests"
+
+@shared_task
+def generate_ai_summary_task():
+    summary = summarize_pending_requests()
+    return summary

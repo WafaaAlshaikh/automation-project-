@@ -4,18 +4,16 @@ from typing import List, Dict, Optional
 import json
 
 class GroqAIClient:
-    """عميل للتواصل مع Groq AI - مجاني وسريع"""
     
     def __init__(self):
         self.api_key = os.environ.get('GROQ_API_KEY')
         if not self.api_key:
-            raise ValueError("❌ GROQ_API_KEY not found in environment variables")
+            raise ValueError("GROQ_API_KEY not found in environment variables")
         
         self.client = Groq(api_key=self.api_key)
         self.default_model = "llama3-70b-8192"
     
     def generate_response(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """توليد استجابة من Groq AI"""
         messages = []
         
         if system_prompt:
@@ -40,10 +38,9 @@ class GroqAIClient:
             return response.choices[0].message.content
             
         except Exception as e:
-            return f"❌ Error: {str(e)}"
+            return f"Error: {str(e)}"
     
     def analyze_leave_request(self, request_data: Dict) -> Dict:
-        """تحليل طلب إجازة وتقديم توصية"""
         prompt = f"""
         Analyze this leave request and provide a recommendation:
         
@@ -91,9 +88,8 @@ class GroqAIClient:
         }
     
     def summarize_requests(self, requests: List[Dict]) -> str:
-        """تلخيص طلبات الإجازات المتعددة"""
         if not requests:
-            return "No pending requests today. ✅"
+            return "No pending requests today."
         
         data = json.dumps(requests, indent=2, ensure_ascii=False)
         

@@ -1,0 +1,41 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<div id="site-name">
+    <a href="{% url 'admin:index' %}">
+        🏢 نظام إدارة الإجازات - Leave Management System
+    </a>
+</div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block extrahead %}
+    <style>
+        #header {
+            background: linear-gradient(135deg, #2c3e50, #3498db) !important;
+        }
+        #header a {
+            color: white !important;
+            font-size: 24px !important;
+            font-weight: bold !important;
+        }
+        .module h2 {
+            background: #34495e !important;
+            color: white !important;
+        }
+        .button, input[type="submit"], input[type="button"] {
+            background: #3498db !important;
+            border-radius: 5px !important;
+            padding: 8px 16px !important;
+        }
+        .button:hover {
+            background: #2980b9 !important;
+        }
+    </style>
+{% endblock %}

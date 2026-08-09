@@ -46,3 +46,16 @@ env/
 htmlcov/
 .tox/
 .pytest_cache/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+celerydb.sqlite
+*.pid
+
+# Redis
+*.rdb
+*.aof
+
+# Logs
+*.log
