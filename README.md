@@ -1,6 +1,6 @@
 # 🏢 Leave Management System – Automation Project
 
-An internal **Leave Management System** built as an **Automation Engineer technical assessment for Harri – Palestine**.
+An internal **Leave Management System** built as an **Automation Engineer technical assessment **.
 
 The system provides employee and leave management, approval workflows, automated background tasks, reporting, and AI-powered recommendations.
 
